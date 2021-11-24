@@ -7,7 +7,9 @@ from psycopg2 import connect, DatabaseError, OperationalError, errors
 # args = parser.parse_args()
 
 # Tworzenie obiektu kursora:
-conn = connect(user="postgres", password="coderslab", host="localhost", port=8888, database="library")
+
+
+conn = connect(user="postgres", password="coderslab", host="localhost", port=8888, database="workshop")
 conn.autocommit = True
 cur = conn.cursor()
 
@@ -30,13 +32,16 @@ def create_table_user():
 def create_table_messages():
     try:
         cur.execute("""CREATE TABLE messages(id SERIAL PRIMARY KEY, from_id INT, to_id INT, creation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, text VARCHAR(255))""")
+        cur.execute("""ALTER TABLE messages ADD FOREIGN key (from_id) REFERENCES users(id)""")
+        cur.execute("""ALTER TABLE messages ADD FOREIGN key (to_id) REFERENCES users(id)""")
     except errors.DuplicateTable as ex:
         print("Błąd zapytania: ", ex)
 
 
 def creating():
     try:
-        create_database()
+        create_cursor_n_connect()
+        # create_database()
         create_table_user()
         create_table_messages()
     except OperationalError as ex:
@@ -44,3 +49,4 @@ def creating():
         raise
 
 # Chcąc wywołać wszystkie funkcje, wywołaj funkcję "creating()"
+# creating()
