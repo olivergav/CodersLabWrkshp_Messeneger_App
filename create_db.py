@@ -1,11 +1,4 @@
 from psycopg2 import connect, DatabaseError, OperationalError, errors
-
-# import argparse
-# parser = argparse.ArgumentParser()
-# parser.add_argument("-db", "--database", help="Please input database name")
-# parser.add_argument("-tb" "--table", help="Please input table name")
-# args = parser.parse_args()
-
 # Tworzenie obiektu kursora:
 
 

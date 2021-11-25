@@ -1,11 +1,25 @@
-import psycopg2
-from psycopg2 import connect
+import argparse
 import hashlib
 import random
 import string
 
+import psycopg2
+from psycopg2 import connect, errors
 
+# Alphabet:
 ALPHABET = string.digits + string.ascii_lowercase + string.ascii_uppercase
+
+# ArgParse:
+parser = argparse.ArgumentParser()
+parser.add_argument("-u", "--username", help="Input username")
+parser.add_argument("-p", "--password", help="Input password")
+parser.add_argument("-n", "--newpass", help="Input new password")
+parser.add_argument("-l", "--list", help="Listing all users", action="store_true")
+parser.add_argument("-d", "--delete", help="Delete user by ID")
+parser.add_argument("-e", "--edit", help="Edit user by ID", action="store_true")
+args = parser.parse_args()
+
+
 # Connecting:
 conn = connect(user="postgres", password="coderslab", host="localhost", port=8888, database="workshop")
 conn.autocommit = True
@@ -140,11 +154,10 @@ class User:
         else:
             return None
 
-
     @staticmethod
     def load_user_by_username(username):
         sql = "SELECT id, username, hashed_password FROM users WHERE username = '" + username + "'"
-        cur.execute(sql, (username))
+        cur.execute(sql, username)
         data = cur.fetchone()
         if data:
             id_, username, hashed_password = data
@@ -154,7 +167,6 @@ class User:
             return loaded_user
         else:
             return None
-
 
     @staticmethod
     def load_all_users():
@@ -208,4 +220,47 @@ class Messages:
             return loaded_message
         else:
             return None
+
+    # Creating user, handling exception, checking password length
+    try:
+        if args.username and args.password is not None and args.edit and args.newpass is None:
+            if len(args.password) >= 8:
+                # noinspection PyTypeChecker
+                x = args.username
+                x = User(args.username, args.password)
+                x.save_to_db()
+            elif len(args.password) < 8:
+                print("==Password is too short (must be 8 characters long)==")
+    except psycopg2.errors.UniqueViolation as ex:
+        print("\n==User already exist==")
+
+    # Edit password
+    if args.username and args.password and args.edit and args.newpass is not None:
+        # Checking if user is created:
+        sql = (f"SELECT username FROM users WHERE username =  '{args.username}'")
+        cur.execute(sql)
+        # If existing:
+        if cur.fetchall() is not None:
+            password_sql = (f"SELECT hashed_password FROM users WHERE username = '{args.username}'")
+            cur.execute(password_sql)
+            data = cur.fetchone()
+            data = str(data)
+            # Hopefully Checking if password is proper
+            # !!!!!!!!!!!!!!! Nie da się zalogować, poprawię jutro:)
+            if check_password(args.password, data) is True:
+                # Checking password length
+                if len(args.newpass) >= 8:
+                    # noinspection PyTypeChecker
+                    newpass = args.newpass
+                    newpass = hash_password(newpass)
+                    set_newpass = (f"UPDATE users SET hashed_password = '{newpass}' WHERE username = '{args.username}'")
+                    cur.execute(set_newpass)
+                    print("==New password setted==")
+                elif len(args.newpass) < 8:
+                    print("==New password is too short (must be 8 characters long)==")
+            else:
+                print("==Wrong password!==")
+        # If not:
+        else:
+            print("==User doesn't exist==")
 
