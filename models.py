@@ -15,10 +15,9 @@ parser.add_argument("-u", "--username", help="Input username")
 parser.add_argument("-p", "--password", help="Input password")
 parser.add_argument("-n", "--newpass", help="Input new password")
 parser.add_argument("-l", "--list", help="Listing all users", action="store_true")
-parser.add_argument("-d", "--delete", help="Delete user by ID")
+parser.add_argument("-d", "--delete", help="Delete user by ID", action="store_true")
 parser.add_argument("-e", "--edit", help="Edit user by ID", action="store_true")
 args = parser.parse_args()
-
 
 # Connecting:
 conn = connect(user="postgres", password="coderslab", host="localhost", port=8888, database="workshop")
@@ -104,7 +103,6 @@ def generate_salt():
     """
     salt = ""
     for i in range(0, 16):
-
         # get a random element from the iterable
         salt += random.choice(ALPHABET)
     return salt
@@ -223,16 +221,19 @@ class Messages:
 
     # Creating user, handling exception, checking password length
     try:
-        if args.username and args.password is not None and args.edit and args.newpass is None:
-            if len(args.password) >= 8:
-                # noinspection PyTypeChecker
-                x = args.username
-                x = User(args.username, args.password)
-                x.save_to_db()
-            elif len(args.password) < 8:
-                print("==Password is too short (must be 8 characters long)==")
+        # Bardzo toporny sposób sprawdzania, czy istnieje. Niech już tak zostanie bo działa >.<
+        if args.username and args.password is not None:
+            if args.newpass is None and args.edit is False:
+                if args.delete is False:
+                    if len(args.password) >= 8:
+                        x = args.username
+                        x = User(args.username, args.password)
+                        x.save_to_db()
+                        print(f"==New user created: {args.username}==")
+                    elif len(args.password) < 8:
+                        print("==Password is too short (must be 8 characters long)==")
     except psycopg2.errors.UniqueViolation as ex:
-        print("\n==User already exist==")
+        print("\n==This user already exist==")
 
     # Edit password
     if args.username and args.password and args.edit and args.newpass is not None:
@@ -244,9 +245,8 @@ class Messages:
             password_sql = (f"SELECT hashed_password FROM users WHERE username = '{args.username}'")
             cur.execute(password_sql)
             data = cur.fetchone()
-            data = str(data)
-            # Hopefully Checking if password is proper
-            # !!!!!!!!!!!!!!! Nie da się zalogować, poprawię jutro:)
+            data = str(data[0])
+            # Checking if password is proper
             if check_password(args.password, data) is True:
                 # Checking password length
                 if len(args.newpass) >= 8:
@@ -263,4 +263,41 @@ class Messages:
         # If not:
         else:
             print("==User doesn't exist==")
+
+    # Delete user:
+    if args.username and args.password is not None and args.delete is True:
+        # Checking if user is created:
+        sql = (f"SELECT username FROM users WHERE username =  '{args.username}'")
+        cur.execute(sql)
+        # If existing:
+        if cur.fetchall() is not None:
+            password_sql = (f"SELECT hashed_password FROM users WHERE username = '{args.username}'")
+            cur.execute(password_sql)
+            data = cur.fetchone()
+            data = str(data[0])
+            # Checking if password is proper
+            if check_password(args.password, data) is True:
+                delete_user = (f"DELETE FROM users WHERE username = '{args.username}'")
+                cur.execute(delete_user)
+                print(f"==User '{args.username}' deleted!==")
+            else:
+                print("==Wrong password!==")
+        # If not:
+        else:
+            print("==User doesn't exist==")
+
+    # Listing all users:
+    if args.list is True:
+        sql = ("SELECT id, username FROM users")
+        cur.execute(sql)
+        data = cur.fetchall()
+        for id, username in data:
+            print(f"id: {id}  user: {username}")
+
+    # Displaying help:
+    if args.username and args.password and args.newpass is None and args.list and args.delete and args.edit is False:
+        parser = argparse.ArgumentParser()
+        parser.print_help()
+
+
 
